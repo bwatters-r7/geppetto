@@ -22,7 +22,6 @@ class portValue:
         self.portNumber = self.portNumber + 1
         return self.portNumber
 
-
 def bailSafely(testConfig):
     if testConfig != None and 'LOG_FILE' in testConfig:
         logFile = testConfig['LOG_FILE']
@@ -36,7 +35,6 @@ def bailSafely(testConfig):
         else:
             logMsg(logFile, "THERE WAS A PROBLEM RESETTING VMS")
     exit(998)
-
 
 def breakoutClones(hostDicList, logFile):
     """
@@ -71,7 +69,6 @@ def breakoutClones(hostDicList, logFile):
                     else:
                         cloneDic[item] = host[item]
                 hostDicList.append(cloneDic)
-
 
 def checkData(testConfig):
     testResult = True
@@ -109,7 +106,6 @@ def checkData(testConfig):
                        payloadName + ":" +
                        sessionData['MODULE']['NAME'])
     return testResult
-
 
 def convertAbstractTargets(targetList, catalog_file, logFile):
     return __matchListToCatalog(targetList, catalog_file, logFile)
@@ -409,7 +405,6 @@ def launchStageThree(testConfig):
             return False
     return True
 
-
 def launchStageTwo(testConfig, terminationToken, schedDelay = 180):
     addScheduleDelay = False
     for target in testConfig['TARGETS']:
@@ -462,7 +457,6 @@ def launchStageTwo(testConfig, terminationToken, schedDelay = 180):
     else:
         logMsg(testConfig['LOG_FILE'], "NO STAGE TWO WAIT REQUIRED")
     return (True, stageTwoNeeded, stageThreeNeeded)
-
 
 def loadJson(fileName):
     """
@@ -590,6 +584,7 @@ def makeVenomCmd(targetData, sessionData, portNum, logFile):
     for settingEntry in payloadData['SETTINGS']:
         processedString = replaceWildcards(settingEntry, targetData, sessionData, portNum)
         msfVenomCmd = msfVenomCmd + " " + settingEntry
+            
     logMsg(logFile, "msfvenom cmd = " + msfVenomCmd)
     return msfVenomCmd
 
@@ -605,61 +600,61 @@ def makeRcScript(cmdList, targetData, sessionData, logFile, portNum):
                     "# TARGET:   " + targetData['NAME'] + ' [' + targetData['IP_ADDRESS'] +"]\n" + \
                     "# MSF HOST: " + sessionData['MSF_HOST']['IP_ADDRESS'] + "\n"
     rcScriptName = sessionData['RC_IN_SCRIPT_NAME']
-    rubySleep = "<ruby>\n"
-    rubySleep += "    sleep(2)\n"
-    rubySleep += "</ruby>\n"
-    rcScriptContent += "cat > " + rcScriptName + " <<EOFRC\n"
-    rcScriptContent += "use " + sessionData['MODULE']['NAME'] + '\n'
+    rubySleep = "echo '<ruby>' >> " + rcScriptName + '\n'
+    rubySleep = rubySleep + "echo '    sleep(2)' >> " + rcScriptName + '\n'
+    rubySleep = rubySleep + "echo '</ruby>' >> " + rcScriptName + '\n'
+    rcScriptContent = rcScriptContent + "echo 'use " + sessionData['MODULE']['NAME'] + " ' > " + rcScriptName + "\n"
     if sessionData['MODULE']['NAME'] != 'exploit/multi/handler':
         # THIS IS TERRIBLE, AND I WISH WE DID NOT HAVE TO DO THIS MAYBE ONLY FOR AUX LATER?
-        rcScriptContent += "set RHOST " + targetData['IP_ADDRESS'] + '\n'
-        rcScriptContent += "set RHOSTS " + targetData['IP_ADDRESS'] + '\n'
+        rcScriptContent = rcScriptContent + "echo 'set RHOST " + targetData['IP_ADDRESS'] + " ' >> " + rcScriptName + "\n"
+        rcScriptContent = rcScriptContent + "echo 'set RHOSTS " + targetData['IP_ADDRESS'] + " ' >> " + rcScriptName + "\n"
     for settingItem in sessionData['MODULE']['SETTINGS']:
         processedString = replaceWildcards(settingItem, targetData, sessionData, portNum)
         if '=' in processedString:
-            rcScriptContent += "set " + processedString.split('=')[0] + ' ' + processedString.split('=')[1] + '\n'
+            rcScriptContent = rcScriptContent + "echo 'set " + processedString.split('=')[0] + ' ' + processedString.split('=')[1] + "' >> " + rcScriptName + '\n'
     if 'PAYLOAD' in sessionData:
-        rcScriptContent += "set payload " + sessionData['PAYLOAD']['NAME'] + '\n'
+        rcScriptContent = rcScriptContent + "echo 'set payload " + sessionData['PAYLOAD']['NAME'] +"' >> " + rcScriptName + '\n'
         for settingItem in sessionData['PAYLOAD']['SETTINGS']:
-            rcScriptContent += "set " + settingItem.split('=')[0] + ' ' + settingItem.split('=')[1] + '\n'
+            if '=' in settingItem:
+                rcScriptContent = rcScriptContent + "echo 'set " + settingItem.split('=')[0] + ' ' + settingItem.split('=')[1] + "' >> " + rcScriptName + '\n'
         if 'bind' in sessionData['PAYLOAD']['NAME']:
-            rcScriptContent += "set RHOST " + targetData['IP_ADDRESS'] + '\n'
-            rcScriptContent += "set LPORT " + str(sessionData['PAYLOAD']['PRIMARY_PORT']) + '\n'
+            rcScriptContent = rcScriptContent + "echo 'set RHOST " + targetData['IP_ADDRESS'] + "' >> " + rcScriptName + '\n'
+            rcScriptContent = rcScriptContent + "echo 'set LPORT " + str(sessionData['PAYLOAD']['PRIMARY_PORT']) + "' >> " + rcScriptName + '\n'
         if 'reverse' in sessionData['PAYLOAD']['NAME']:
-            rcScriptContent += "set LHOST " + sessionData['MSF_HOST']['IP_ADDRESS'] + '\n'
-            rcScriptContent += "set LPORT " + str(sessionData['PAYLOAD']['PRIMARY_PORT']) + '\n'
-        rcScriptContent += "show options\n"
-        rcScriptContent += rubySleep
+            rcScriptContent = rcScriptContent + "echo 'set LHOST " + sessionData['MSF_HOST']['IP_ADDRESS'] + "' >> " + rcScriptName + '\n'
+            rcScriptContent = rcScriptContent + "echo 'set LPORT " + str(sessionData['PAYLOAD']['PRIMARY_PORT']) + "' >> " + rcScriptName + '\n'
+        rcScriptContent = rcScriptContent + "echo 'show options' >> " + rcScriptName + '\n'
+        rcScriptContent = rcScriptContent + rubySleep
         if sessionData['MODULE']['NAME'] != 'exploit/multi/handler':
-            rcScriptContent += 'check\n'
-        rcScriptContent += 'run -z\n'
-        rcScriptContent += '<ruby>\n'
-        rcScriptContent += '    while framework.sessions.count == 0 do\n'
-        rcScriptContent += '        sleep(1)\n'
-        rcScriptContent += '    end\n'
-        rcScriptContent += '    sleep(30)\n'
-        rcScriptContent += '</ruby>\n'
+            rcScriptContent = rcScriptContent + "echo 'check' >> " + rcScriptName + '\n'
+        rcScriptContent = rcScriptContent + "echo 'run -z' >> " + rcScriptName + '\n'
+        rcScriptContent = rcScriptContent + "echo '<ruby>' >> " + rcScriptName + '\n'
+        rcScriptContent = rcScriptContent + "echo '    x=0' >> " + rcScriptName + '\n'
+        rcScriptContent = rcScriptContent + "echo '    while (framework.sessions.count == 0) and (x < 10) do '>> " + rcScriptName + '\n'
+        rcScriptContent = rcScriptContent + "echo '        sleep(1)' >> " + rcScriptName + '\n'
+        rcScriptContent = rcScriptContent + "echo '        x=x+1' >> " + rcScriptName + '\n'
+        rcScriptContent = rcScriptContent + "echo '    end' >> " + rcScriptName + '\n'
+        rcScriptContent = rcScriptContent + "echo '    sleep(30)' >> " + rcScriptName + '\n'
+        rcScriptContent = rcScriptContent + "echo '</ruby>' >> " + rcScriptName + '\n'
     else:
-        rcScriptContent += 'show options\n'
-        rcScriptContent += rubySleep
-        rcScriptContent += 'run -z\n'
-        rcScriptContent += '<ruby>\n'
-        rcScriptContent += '  sleep(10)\n'
-        rcScriptContent += '</ruby>\n'
+        rcScriptContent = rcScriptContent + "echo 'show options' >> " + rcScriptName + '\n'
+        rcScriptContent = rcScriptContent + rubySleep
+        rcScriptContent = rcScriptContent + "echo 'run -z' >> " + rcScriptName + '\n'
+        rcScriptContent = rcScriptContent + "echo '<ruby>' >> " + rcScriptName + '\n'
+        rcScriptContent = rcScriptContent + "echo '  sleep(10)' >> " + rcScriptName + '\n'
+        rcScriptContent = rcScriptContent + "echo '</ruby>' >> " + rcScriptName + '\n'
         
     addSleep = True
     for cmd in cmdList:
         processedCmd = replaceWildcards(cmd, targetData, sessionData, portNum)
-        rcScriptContent += processedCmd + '\n'
+        rcScriptContent = rcScriptContent + "echo '" + processedCmd + "' >> " + rcScriptName + '\n'
         if "<ruby>" in processedCmd.lower():
             addSleep = False
         if "</ruby>" in processedCmd.lower():
             addSleep = True
         if addSleep:
-            rcScriptContent += rubySleep
-    rcScriptContent += 'exit -y\n'
-    rcScriptContent += 'EOFRC\n'
-
+            rcScriptContent = rcScriptContent + rubySleep
+    rcScriptContent = rcScriptContent + "echo 'exit -y' >> " + rcScriptName + '\n'
     return rcScriptContent    
 
 
@@ -798,6 +793,17 @@ def prepConfig(args):
         logMsg(logFile, "THERE WAS A PROBLEM WITH THE TEST JSON CONFIG FILE")
         exit(999)
         
+    if args.targetFile != None:
+        configData['TARGETS'] = parseTestConfig(args.targetFile)
+    if 'TARGET_FILE' in configData['TARGETS']:
+        configData['TARGETS'] = parseTestConfig(configData['TARGETS']['TARGET_FILE'])['MSF_HOSTS'].copy()
+    
+    if args.msfHostsFile != None:
+        configData['MSF_HOSTS'] = parseTestConfig(args.msfHostsFile)['MSF_HOSTS']
+        print(str(configData['MSF_HOSTS']))
+    if 'MSF_HOST_FILE' in configData['MSF_HOSTS']:
+        configData['MSF_HOSTS'] = parseTestConfig(configData['MSF_HOSTS']['MSF_HOST_FILE'])
+    
     if args.targetName != None:
         logMsg(logFile, "REPLACING ALL TARGETS WITH SINGLE TARGET " + str(args.targetName))
         newTargets = []
@@ -815,7 +821,7 @@ def prepConfig(args):
     if args.payload != None:
         payloadDic = {}
         payloadDic['NAME'] = args.payload
-        if args.payloadoptions != None:
+        if args.payloadOptions != None:
             payloadDic['SETTINGS'] = args.payloadoptions.split(',')
         else:
             payloadDic['SETTINGS'] = []
@@ -1585,22 +1591,25 @@ def __matchListToCatalog(vm_List, catalog_file, logFile="default.log"):
     my_catalog = SystemCatalog(catalog_file)
     defined_vms = []
     for vm in vm_List:
-        if 'CPE' in vm:
-            local_target = my_catalog.findByCPE(vm['CPE'])
-        elif 'OS' in vm:
-            local_target = my_catalog.findByOS(vm['OS'])
-        else:
-            local_target = my_catalog.findByName(vm['NAME'])
-        if local_target is not None:
-            final_vm = vm.copy()
-            final_vm.update(local_target)
-        else:
+        if vm['TYPE'] == 'PHYSICAL':
             final_vm = vm
-        if "USERNAME" not in final_vm:
-            logMsg(logFile, "NO USERNAME FOR " + str(vm))
-            return False
-        if "PASSWORD" not in final_vm:
-            logMsg(logFile, "NO PASSWORD FOR " + str(vm))
-            return False
+        else:
+            if 'CPE' in vm:
+                local_target = my_catalog.findByCPE(vm['CPE'])
+            elif 'OS' in vm:
+                local_target = my_catalog.findByOS(vm['OS'])
+            else:
+                local_target = my_catalog.findByName(vm['NAME'])
+            if local_target is not None:
+                final_vm = vm.copy()
+                final_vm.update(local_target)
+            else:
+                final_vm = vm
+            if "USERNAME" not in final_vm:
+                logMsg(logFile, "NO USERNAME FOR " + str(vm))
+                return False
+            if "PASSWORD" not in final_vm:
+                logMsg(logFile, "NO PASSWORD FOR " + str(vm))
+                return False
         defined_vms.append(final_vm)
     return defined_vms
